@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tribal AI Chat</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ai-chat-shell">
+
+    <!-- Sidebar -->
+    <aside class="ai-sidebar">
+      <div class="ai-brand">Tribal</div>
+      <button id="btn-new-chat">+ New Chat</button>
+      <div id="session-list" class="session-list"></div>
+    </aside>
+
+    <!-- Main -->
+    <main class="ai-main">
+      <div class="ai-topbar">
+        <span id="topbar-title" class="topbar-title">New Chat</span>
+        <button id="btn-clear" class="btn-clear" disabled>Clear</button>
+      </div>
+      <div id="chat-window" class="ai-messages">
+        <div class="ai-empty">Ask a question to get started.</div>
+      </div>
+      <form id="composer" class="ai-composer">
+        <textarea
+          id="message-input"
+          placeholder="Message Tribal… (Shift+Enter for new line)"
+          rows="2"
+        ></textarea>
+        <button type="submit" id="send-btn">Send</button>
+      </form>
+    </main>
+
+  </div>
+
+  <!-- Config: exposes window.TRIBAL_CONFIG.webhookUrl from server env var -->
+  <script src="/config.js"></script>
+  <!-- CDN libs (loaded in order so globals are available when app.js runs) -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

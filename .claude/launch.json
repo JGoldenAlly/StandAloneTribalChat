@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Tribal Chat (standalone)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000,
+      "env": {
+        "WEBHOOK_URL": "https://n8n.ally-energy.com/webhook/knowcarbon"
+      }
+    }
+  ]
+}

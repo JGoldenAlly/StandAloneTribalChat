@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  tribal-chat:
+    build: .
+    image: tribal-chat:latest
+    container_name: tribal-chat
+    ports:
+      - "3210:3000"
+    environment:
+      # Required: URL of the n8n webhook that handles chat messages
+      - WEBHOOK_URL=https://n8n.ally-energy.com/webhook/knowcarbon
+      # Optional: override the internal port (default 3000)
+      - PORT=3000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
