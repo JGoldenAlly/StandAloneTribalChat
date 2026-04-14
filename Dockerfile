@@ -1,8 +1,5 @@
 FROM node:20-alpine
 
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
 WORKDIR /app
 
 # Install dependencies (layer cache: copy manifests first)
@@ -13,12 +10,8 @@ RUN npm ci --omit=dev
 COPY server.js ./
 COPY public/ ./public/
 
-# Set ownership and create the session data directory
-RUN chown -R appuser:appgroup /app && \
-    mkdir -p /app/data && \
-    chown appuser:appgroup /app/data
-
-USER appuser
+# Create the session data directory
+RUN mkdir -p /app/data
 
 EXPOSE 3000
 
