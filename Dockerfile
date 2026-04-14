@@ -13,8 +13,10 @@ RUN npm ci --omit=dev
 COPY server.js ./
 COPY public/ ./public/
 
-# Set ownership
-RUN chown -R appuser:appgroup /app
+# Set ownership and create the session data directory
+RUN chown -R appuser:appgroup /app && \
+    mkdir -p /app/data && \
+    chown appuser:appgroup /app/data
 
 USER appuser
 

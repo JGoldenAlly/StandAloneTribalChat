@@ -48,7 +48,25 @@ function generateSessionId() {
   return `tribal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function loadSessions() {
+async function loadSessions() {
+  // Try server first so sessions are shared across devices
+  if (authToken) {
+    try {
+      const res = await fetch('/api/sessions', {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sessions = Array.isArray(data) ? data : [];
+        // Keep localStorage in sync as a local cache
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+        return;
+      }
+    } catch (e) {
+      console.warn('Server session load failed, falling back to localStorage:', e);
+    }
+  }
+  // Fallback: localStorage (offline or no token)
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     sessions = Array.isArray(stored) ? stored : [];
@@ -58,7 +76,19 @@ function loadSessions() {
 }
 
 function saveSessions() {
+  // Always write localStorage synchronously (instant local persistence / offline cache)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  // Fire-and-forget to server — callers don't need to await this
+  if (authToken) {
+    fetch('/api/sessions', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      body: JSON.stringify(sessions),
+    }).catch(e => console.warn('Server session save failed:', e));
+  }
 }
 
 function createNewSession() {
@@ -377,6 +407,7 @@ async function sendMessage() {
   saveSessions();
   renderSessionList();
   updateControls();
+  renderMessages();
   appendThinkingBubble();
 
   try {
@@ -434,7 +465,7 @@ async function sendMessage() {
 }
 
 // ── Init ─────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Extract and decode JWT from URL
   authToken = getTokenFromUrl();
   if (authToken) {
@@ -442,8 +473,8 @@ document.addEventListener('DOMContentLoaded', () => {
     displayName = payload?.displayName?.split(' ')[0] ?? 'You';
   }
 
-  // Load sessions from localStorage
-  loadSessions();
+  // Load sessions (server first, localStorage fallback)
+  await loadSessions();
   if (sessions.length === 0) {
     createNewSession();
   } else {
