@@ -2,6 +2,7 @@
 
 // ── State ────────────────────────────────────────────────
 const STORAGE_KEY = 'tribal-chat.sessions.v2';
+const THEME_KEY   = 'tribal-chat.theme';
 let sessions = [];
 let activeSessionIndex = 0;
 let isLoading = false;
@@ -25,6 +26,19 @@ const CHART_COLORS = [
 
 function generateColors(count) {
   return Array.from({ length: count }, (_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+}
+
+// ── Theme ────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.classList.toggle('light-mode', theme === 'light');
+  const btn = document.getElementById('btn-theme');
+  if (btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+function toggleTheme() {
+  const next = document.documentElement.classList.contains('light-mode') ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
 }
 
 // ── JWT helpers ──────────────────────────────────────────
@@ -484,7 +498,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     scrollToBottom();
   }
 
+  // Apply saved theme (default: dark)
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+
   // Event listeners
+  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
   document.getElementById('btn-new-chat').addEventListener('click', createNewSession);
 
   document.getElementById('btn-clear').addEventListener('click', clearCurrentSession);
