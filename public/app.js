@@ -439,7 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
   authToken = getTokenFromUrl();
   if (authToken) {
     const payload = decodeJwt(authToken);
-    displayName = payload?.userName ?? 'You';
+    displayName = payload?.displayName?.split(' ')[0] ?? 'You';
   }
 
   // Load sessions from localStorage
