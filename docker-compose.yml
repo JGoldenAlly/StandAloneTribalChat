@@ -12,8 +12,12 @@ services:
       - WEBHOOK_URL=https://n8n.ally-energy.com/webhook/knowcarbon
       # Optional: override the internal port (default 3000)
       - PORT=3000
+      # Optional: override the session data path inside the container (default /app/data)
+      # - DATA_DIR=/app/data
     volumes:
-      - tribal-sessions:/app/data
+      # Bind mount: change the host path (left of :) to any folder on the host machine.
+      # The container will read/write session JSON files there.
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
@@ -21,6 +25,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-
-volumes:
-  tribal-sessions:

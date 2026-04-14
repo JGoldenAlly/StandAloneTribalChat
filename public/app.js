@@ -7,6 +7,7 @@ let sessions = [];
 let activeSessionIndex = 0;
 let isLoading = false;
 let displayName = 'You';
+let userName    = 'You';
 let authToken = null;
 
 /** @type {Map<string, import('chart.js').Chart>} */
@@ -429,7 +430,7 @@ async function sendMessage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        userId: displayName,
+        userId: userName,
         chatInput: text,
         sessionId: sessions[activeSessionIndex].sessionId,
       }),
@@ -485,6 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (authToken) {
     const payload = decodeJwt(authToken);
     displayName = payload?.displayName?.split(' ')[0] ?? 'You';
+    userName    = payload?.userName ?? displayName;
   }
 
   // Load sessions (server first, localStorage fallback)
