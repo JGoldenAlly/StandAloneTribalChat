@@ -423,6 +423,22 @@ html, body {
 #send-btn:hover:not(:disabled) { background: var(--accent-hover); }
 #send-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* ── Footer ─────────────────────────────────────────────── */
+.app-footer {
+  text-align: center;
+  padding: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+.app-footer a {
+  color: var(--text-faint);
+  text-decoration: none;
+}
+.app-footer a:hover { text-decoration: underline; }
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ai-chat-shell {
