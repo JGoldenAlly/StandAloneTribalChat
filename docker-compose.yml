@@ -14,6 +14,8 @@ services:
       - PORT=3000
       # Optional: override the session data path inside the container (default /app/data)
       # - DATA_DIR=/app/data
+      # Optional: restrict access to iframe embeds from these origins only (comma-separated)
+      - ALLOWED_ORIGINS=https://knowcarbon.ally-energy.com
     volumes:
       # Bind mount: change the host path (left of :) to any folder on the host machine.
       # The container will read/write session JSON files there.

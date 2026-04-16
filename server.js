@@ -11,6 +11,13 @@ const PORT         = process.env.PORT || 3000;
 const WEBHOOK_URL  = process.env.WEBHOOK_URL;
 const DATA_DIR     = process.env.DATA_DIR || path.join(__dirname, 'data');
 
+// Comma-separated list of allowed parent origins, e.g.:
+//   ALLOWED_ORIGINS=https://knowcarbon.ally-energy.com
+// Leave unset to allow all origins (useful for local dev).
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+
 if (!WEBHOOK_URL) {
   console.error('FATAL: WEBHOOK_URL environment variable is not set.');
   process.exit(1);
@@ -21,6 +28,54 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
+
+// ── Origin guard ─────────────────────────────────────────
+// When ALLOWED_ORIGINS is set, only serve the app when it is loaded inside
+// an iframe from a permitted parent. Direct browser navigation is blocked.
+//
+// Two signals are checked (both must pass if present):
+//   1. Sec-Fetch-Dest — set by all modern browsers; 'iframe' = embedded,
+//      'document' = direct navigation. Cannot be faked by a normal user.
+//   2. Referer — the URL of the page that contains the iframe.
+if (ALLOWED_ORIGINS.length) {
+  app.use((req, res, next) => {
+    // Let API calls, health checks, and sub-resources (JS/CSS) through — the
+    // guard only applies to the HTML page itself.
+    const isPageLoad = req.path === '/' || req.path === '/index.html';
+    if (!isPageLoad) return next();
+
+    const fetchDest = req.headers['sec-fetch-dest'];   // 'iframe' | 'document' | undefined
+    const referer   = req.headers['referer'] || '';
+
+    // Modern browsers: block anything that is a direct top-level navigation.
+    if (fetchDest === 'document') {
+      return res.status(403).send(forbiddenHtml());
+    }
+
+    // Validate the Referer against the allowed list when it is present.
+    if (referer && !ALLOWED_ORIGINS.some(o => referer.startsWith(o))) {
+      return res.status(403).send(forbiddenHtml());
+    }
+
+    next();
+  });
+}
+
+function forbiddenHtml() {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Access Restricted</title>
+<style>
+  body { font-family: system-ui, sans-serif; display: flex; align-items: center;
+         justify-content: center; height: 100vh; margin: 0; background: #f9fafb; }
+  .box { text-align: center; color: #374151; }
+  h1   { font-size: 1.4rem; margin-bottom: 0.5rem; }
+  p    { color: #6b7280; font-size: 0.9rem; }
+</style></head><body>
+<div class="box"><h1>Access Restricted</h1>
+<p>This application must be accessed through its parent application.</p></div>
+</body></html>`;
+}
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── Session helpers ──────────────────────────────────────
