@@ -158,6 +158,12 @@ function clearCurrentSession() {
 // ── Markdown rendering ───────────────────────────────────
 marked.setOptions({ gfm: true, breaks: true });
 
+// Open all links in a new tab
+const mdRenderer = new marked.Renderer();
+mdRenderer.link = ({ href, title, text }) =>
+  `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+marked.use({ renderer: mdRenderer });
+
 const MD_ALLOWED_TAGS = [
   'p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
@@ -166,7 +172,14 @@ const MD_ALLOWED_TAGS = [
 ];
 
 function renderMarkdown(text) {
-  const raw = marked.parse(text);
+  // Convert markdown images to download links — webhook responses may include
+  // file URLs formatted as images (e.g. ![](https://...)) which DOMPurify would
+  // strip. Render them as labelled hyperlinks instead.
+  const processed = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) => {
+    const label = alt.trim() || 'Download file';
+    return `[${label}](${url.trim()})`;
+  });
+  const raw = marked.parse(processed);
   return DOMPurify.sanitize(raw, {
     ALLOWED_TAGS: MD_ALLOWED_TAGS,
     ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
