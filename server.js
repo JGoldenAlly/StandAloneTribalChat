@@ -174,7 +174,11 @@ app.get('/health', (_req, res) => {
 // index.html loads this as <script src="/config.js"></script>
 app.get('/config.js', (_req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
-  res.send(`window.TRIBAL_CONFIG = ${JSON.stringify({ webhookUrl: WEBHOOK_URL })};`);
+  const config = {
+    webhookUrl:        WEBHOOK_URL,
+    webhookTimeoutMs:  parseInt(process.env.WEBHOOK_TIMEOUT_MS, 10) || 300000, // default 5 min
+  };
+  res.send(`window.TRIBAL_CONFIG = ${JSON.stringify(config)};`);
 });
 
 app.listen(PORT, () => {

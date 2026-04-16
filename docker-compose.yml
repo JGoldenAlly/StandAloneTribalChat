@@ -16,6 +16,8 @@ services:
       # - DATA_DIR=/app/data
       # Optional: restrict access to iframe embeds from these origins only (comma-separated)
       - ALLOWED_ORIGINS=https://knowcarbon.ally-energy.com
+      # Optional: how long to wait for the n8n webhook before giving up (milliseconds, default 300000 = 5 min)
+      # - WEBHOOK_TIMEOUT_MS=300000
     volumes:
       # Bind mount: change the host path (left of :) to any folder on the host machine.
       # The container will read/write session JSON files there.

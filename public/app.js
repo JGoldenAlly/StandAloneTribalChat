@@ -425,16 +425,22 @@ async function sendMessage() {
   renderMessages();
   appendThinkingBubble();
 
+  const timeoutMs = window.TRIBAL_CONFIG?.webhookTimeoutMs ?? 300000;
+  const controller = new AbortController();
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         userId: userName,
         chatInput: text,
         sessionId: sessions[activeSessionIndex].sessionId,
       }),
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Webhook responded with HTTP ${response.status}`);
@@ -462,9 +468,12 @@ async function sendMessage() {
     });
   } catch (err) {
     console.error('Chat error:', err);
+    const isTimeout = err.name === 'AbortError';
     sessions[activeSessionIndex].messages.push({
       role: 'assistant',
-      content: 'Sorry, something went wrong reaching the AI assistant. Please try again.',
+      content: isTimeout
+        ? `The request timed out after ${Math.round(timeoutMs / 60000)} minute(s). Your query may be too complex for a quick response — please try again, or rephrase to be more specific.`
+        : 'Sorry, something went wrong reaching the AI assistant. Please try again.',
       timestamp: new Date().toISOString(),
       chartData: null,
     });
