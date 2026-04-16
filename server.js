@@ -38,6 +38,7 @@ app.use(express.json({ limit: '2mb' }));
 //      'document' = direct navigation. Cannot be faked by a normal user.
 //   2. Referer — the URL of the page that contains the iframe.
 if (ALLOWED_ORIGINS.length) {
+  console.log('Origin guard active. Allowed origins:', ALLOWED_ORIGINS);
   app.use((req, res, next) => {
     // Let API calls, health checks, and sub-resources (JS/CSS) through — the
     // guard only applies to the HTML page itself.
@@ -46,6 +47,7 @@ if (ALLOWED_ORIGINS.length) {
 
     const fetchDest = req.headers['sec-fetch-dest'];   // 'iframe' | 'document' | undefined
     const referer   = req.headers['referer'] || '';
+    console.log(`[origin-guard] path=${req.path} sec-fetch-dest=${fetchDest} referer=${referer}`);
     const originOk  = ALLOWED_ORIGINS.some(o => referer.startsWith(o));
 
     // Rule 1: if Sec-Fetch-Dest is present it must be 'iframe' — any other
