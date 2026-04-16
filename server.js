@@ -46,14 +46,23 @@ if (ALLOWED_ORIGINS.length) {
 
     const fetchDest = req.headers['sec-fetch-dest'];   // 'iframe' | 'document' | undefined
     const referer   = req.headers['referer'] || '';
+    const originOk  = ALLOWED_ORIGINS.some(o => referer.startsWith(o));
 
-    // Modern browsers: block anything that is a direct top-level navigation.
-    if (fetchDest === 'document') {
+    // Rule 1: if Sec-Fetch-Dest is present it must be 'iframe' — any other
+    //         value (e.g. 'document') means a direct browser navigation.
+    if (fetchDest && fetchDest !== 'iframe') {
       return res.status(403).send(forbiddenHtml());
     }
 
-    // Validate the Referer against the allowed list when it is present.
-    if (referer && !ALLOWED_ORIGINS.some(o => referer.startsWith(o))) {
+    // Rule 2: if Sec-Fetch-Dest confirms iframe we still require the Referer
+    //         to come from an allowed origin (when one is present).
+    if (referer && !originOk) {
+      return res.status(403).send(forbiddenHtml());
+    }
+
+    // Rule 3: deny-by-default — if we have no positive signal at all
+    //         (no Sec-Fetch-Dest and no matching Referer) block the request.
+    if (!fetchDest && !originOk) {
       return res.status(403).send(forbiddenHtml());
     }
 
