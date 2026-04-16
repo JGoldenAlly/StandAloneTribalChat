@@ -158,12 +158,6 @@ function clearCurrentSession() {
 // ── Markdown rendering ───────────────────────────────────
 marked.setOptions({ gfm: true, breaks: true });
 
-// Open all links in a new tab
-const mdRenderer = new marked.Renderer();
-mdRenderer.link = ({ href, title, text }) =>
-  `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-marked.use({ renderer: mdRenderer });
-
 const MD_ALLOWED_TAGS = [
   'p', 'br', 'strong', 'em', 'code', 'pre', 'ul', 'ol', 'li',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote',
