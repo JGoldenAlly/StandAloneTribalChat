@@ -460,6 +460,7 @@ html, body {
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 .btn-copy-response span { display: none; }
+.btn-copy-response--copied span { display: inline; }
 .btn-copy-response svg {
   width: 13px;
   height: 13px;
