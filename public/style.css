@@ -439,6 +439,41 @@ html, body {
 }
 .app-footer a:hover { text-decoration: underline; }
 
+/* ── Message action buttons ─────────────────────────────── */
+.bubble-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.btn-copy-response {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.btn-copy-response svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}
+.btn-copy-response:hover {
+  color: var(--text-primary);
+  border-color: var(--text-muted);
+  background: var(--bg-secondary);
+}
+.btn-copy-response--copied {
+  color: #10b981;
+  border-color: #10b981;
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ai-chat-shell {

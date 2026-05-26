@@ -331,6 +331,40 @@ function renderMessages() {
       renderChart(chartContainer, msg.chartData, msgId);
     }
 
+    if (msg.role === 'assistant') {
+      const actionsEl = document.createElement('div');
+      actionsEl.className = 'bubble-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'btn-copy-response';
+      copyBtn.title = 'Copy response';
+      copyBtn.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ' +
+        'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+        '<rect x="9" y="9" width="13" height="13" rx="2"/>' +
+        '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>' +
+        '</svg>' +
+        '<span>Copy response</span>';
+
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(msg.content).then(() => {
+          const label = copyBtn.querySelector('span');
+          const svg   = copyBtn.querySelector('svg');
+          label.textContent = 'Copied!';
+          svg.style.display = 'none';
+          copyBtn.classList.add('btn-copy-response--copied');
+          setTimeout(() => {
+            label.textContent = 'Copy response';
+            svg.style.display = '';
+            copyBtn.classList.remove('btn-copy-response--copied');
+          }, 2000);
+        });
+      });
+
+      actionsEl.appendChild(copyBtn);
+      bubble.appendChild(actionsEl);
+    }
+
     bubble.appendChild(timeEl);
     chatWindow.appendChild(bubble);
   });
