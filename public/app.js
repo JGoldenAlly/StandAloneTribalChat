@@ -6,6 +6,8 @@ const THEME_KEY   = 'tribal-chat.theme';
 let sessions = [];
 let activeSessionIndex = 0;
 let isLoading = false;
+let messageHistoryIndex = -1;  // -1 = not navigating history
+let messageDraft = '';          // unsaved draft text before entering history
 let displayName = 'You';
 let userName    = 'You';
 let authToken = null;
@@ -115,6 +117,8 @@ function createNewSession() {
   };
   sessions.unshift(session);
   activeSessionIndex = 0;
+  messageHistoryIndex = -1;
+  messageDraft = '';
   saveSessions();
   renderSessionList();
   renderMessages();
@@ -124,6 +128,8 @@ function createNewSession() {
 
 function switchSession(index) {
   activeSessionIndex = index;
+  messageHistoryIndex = -1;
+  messageDraft = '';
   renderSessionList();
   renderMessages();
   updateControls();
@@ -425,6 +431,8 @@ async function sendMessage() {
   }
 
   input.value = '';
+  messageHistoryIndex = -1;
+  messageDraft = '';
   isLoading = true;
   saveSessions();
   renderSessionList();
@@ -531,6 +539,44 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('message-input').addEventListener('keydown', (e) => {
+    const input = e.target;
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      const cursorAtTop = input.selectionStart === 0 ||
+        !input.value.substring(0, input.selectionStart).includes('\n');
+      const cursorAtBottom = input.selectionEnd === input.value.length ||
+        !input.value.substring(input.selectionEnd).includes('\n');
+
+      const userMessages = (sessions[activeSessionIndex]?.messages ?? [])
+        .filter(m => m.role === 'user')
+        .map(m => m.content);
+
+      if (userMessages.length === 0) return;
+
+      if (e.key === 'ArrowUp' && cursorAtTop) {
+        e.preventDefault();
+        if (messageHistoryIndex === -1) messageDraft = input.value;
+        messageHistoryIndex = Math.min(messageHistoryIndex + 1, userMessages.length - 1);
+        input.value = userMessages[userMessages.length - 1 - messageHistoryIndex];
+        input.setSelectionRange(0, 0);
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+      }
+
+      if (e.key === 'ArrowDown' && cursorAtBottom && messageHistoryIndex > -1) {
+        e.preventDefault();
+        messageHistoryIndex -= 1;
+        const entry = messageHistoryIndex === -1
+          ? messageDraft
+          : userMessages[userMessages.length - 1 - messageHistoryIndex];
+        input.value = entry;
+        input.setSelectionRange(entry.length, entry.length);
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+      }
+      return;
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
