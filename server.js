@@ -6,10 +6,11 @@ const path    = require('path');
 const fs      = require('fs');
 const crypto  = require('crypto');
 
-const app          = express();
-const PORT         = process.env.PORT || 3000;
-const WEBHOOK_URL  = process.env.WEBHOOK_URL;
-const DATA_DIR     = process.env.DATA_DIR || path.join(__dirname, 'data');
+const app                  = express();
+const PORT                 = process.env.PORT || 3000;
+const WEBHOOK_URL          = process.env.WEBHOOK_URL;
+const FEEDBACK_WEBHOOK_URL = process.env.FEEDBACK_WEBHOOK_URL || null;
+const DATA_DIR             = process.env.DATA_DIR || path.join(__dirname, 'data');
 
 // Comma-separated list of allowed parent origins, e.g.:
 //   ALLOWED_ORIGINS=https://knowcarbon.ally-energy.com
@@ -151,6 +152,22 @@ app.get('/api/sessions', (req, res) => {
       res.json(Array.isArray(data) ? data : []);
     } catch { res.json([]); }
   });
+});
+
+// POST /feedback — proxy thumbs up/down feedback to the dedicated n8n webhook
+app.post('/feedback', async (req, res) => {
+  if (!FEEDBACK_WEBHOOK_URL) return res.status(503).json({ error: 'Feedback webhook not configured' });
+  try {
+    const response = await fetch(FEEDBACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body),
+    });
+    res.sendStatus(response.ok ? 204 : 502);
+  } catch (e) {
+    console.error('Feedback webhook error:', e);
+    res.status(502).json({ error: 'Feedback delivery failed' });
+  }
 });
 
 // PUT /api/sessions — replace this user's session array

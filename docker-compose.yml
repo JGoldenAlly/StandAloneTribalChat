@@ -10,6 +10,8 @@ services:
     environment:
       # Required: URL of the n8n webhook that handles chat messages
       - WEBHOOK_URL=https://n8n.ally-energy.com/webhook/knowcarbon
+      # Optional: URL of the n8n webhook that receives thumbs up/down feedback
+      # - FEEDBACK_WEBHOOK_URL=https://n8n.ally-energy.com/webhook/tribal-feedback
       # Optional: override the internal port (default 3000)
       - PORT=3000
       # Optional: override the session data path inside the container (default /app/data)

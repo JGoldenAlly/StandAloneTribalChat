@@ -11,6 +11,7 @@ let messageDraft = '';          // unsaved draft text before entering history
 let displayName = 'You';
 let userName    = 'You';
 let authToken = null;
+let sessionSearchQuery = '';
 
 /** @type {Map<string, import('chart.js').Chart>} */
 const chartInstances = new Map();
@@ -256,7 +257,15 @@ function renderChart(container, chartData, msgId) {
 function renderSessionList() {
   const list = document.getElementById('session-list');
   list.innerHTML = '';
+  const q = sessionSearchQuery.toLowerCase();
+
   sessions.forEach((session, i) => {
+    if (q) {
+      const labelMatch = session.label.toLowerCase().includes(q);
+      const contentMatch = session.messages.some(m => m.content.toLowerCase().includes(q));
+      if (!labelMatch && !contentMatch) return;
+    }
+
     const item = document.createElement('div');
     item.className = 'session-item' + (i === activeSessionIndex ? ' active' : '');
     item.addEventListener('click', () => switchSession(i));
@@ -264,6 +273,11 @@ function renderSessionList() {
     const label = document.createElement('span');
     label.className = 'session-label';
     label.textContent = session.label;
+    label.title = 'Double-click to rename';
+    label.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      startRenameSession(i, label);
+    });
 
     const del = document.createElement('button');
     del.className = 'session-delete';
@@ -274,6 +288,40 @@ function renderSessionList() {
     item.appendChild(label);
     item.appendChild(del);
     list.appendChild(item);
+  });
+}
+
+function startRenameSession(index, labelEl) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = sessions[index].label;
+  input.className = 'session-rename-input';
+  labelEl.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+
+  function commit() {
+    if (committed) return;
+    committed = true;
+    const val = input.value.trim();
+    if (val) sessions[index].label = val;
+    saveSessions();
+    renderSessionList();
+    if (index === activeSessionIndex) {
+      document.getElementById('topbar-title').textContent = sessions[index].label;
+    }
+  }
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      committed = true; // prevent blur from saving
+      renderSessionList();
+    }
   });
 }
 
@@ -335,6 +383,7 @@ function renderMessages() {
       const actionsEl = document.createElement('div');
       actionsEl.className = 'bubble-actions';
 
+      // Copy button
       const copyBtn = document.createElement('button');
       copyBtn.className = 'btn-copy-response';
       copyBtn.title = 'Copy response';
@@ -361,7 +410,33 @@ function renderMessages() {
         });
       });
 
+      // Thumbs up/down
+      const thumbUp = document.createElement('button');
+      thumbUp.className = 'btn-feedback' + (msg.feedback === 'positive' ? ' btn-feedback--active-pos' : '');
+      thumbUp.title = 'Good response';
+      thumbUp.textContent = '👍';
+      thumbUp.addEventListener('click', () => setFeedback(i, 'positive'));
+
+      const thumbDown = document.createElement('button');
+      thumbDown.className = 'btn-feedback' + (msg.feedback === 'negative' ? ' btn-feedback--active-neg' : '');
+      thumbDown.title = 'Bad response';
+      thumbDown.textContent = '👎';
+      thumbDown.addEventListener('click', () => setFeedback(i, 'negative'));
+
       actionsEl.appendChild(copyBtn);
+      actionsEl.appendChild(thumbUp);
+      actionsEl.appendChild(thumbDown);
+
+      // Regenerate button — only on the last assistant message
+      if (i === msgs.length - 1) {
+        const regenBtn = document.createElement('button');
+        regenBtn.className = 'btn-regenerate';
+        regenBtn.title = 'Regenerate response';
+        regenBtn.textContent = '↺ Regenerate';
+        regenBtn.addEventListener('click', regenerateResponse);
+        actionsEl.appendChild(regenBtn);
+      }
+
       bubble.appendChild(actionsEl);
     }
 
@@ -403,6 +478,14 @@ function scrollToBottom() {
   }, 0);
 }
 
+function updateScrollButton() {
+  const chatWindow = document.getElementById('chat-window');
+  const btn = document.getElementById('btn-scroll-bottom');
+  if (!btn) return;
+  const distFromBottom = chatWindow.scrollHeight - chatWindow.scrollTop - chatWindow.clientHeight;
+  btn.classList.toggle('visible', distFromBottom > 120);
+}
+
 // ── Chart extraction from output text ────────────────────
 // n8n sometimes embeds the chart JSON at the start of the output string
 // rather than (or in addition to) sending it as a separate field.
@@ -440,14 +523,61 @@ function extractChartFromOutput(output) {
   return { text: output, chartData: null };
 }
 
+// ── Webhook call helper ──────────────────────────────────
+async function fetchWebhookResponse(text, sessionId) {
+  const webhookUrl = window.TRIBAL_CONFIG?.webhookUrl;
+  if (!webhookUrl) throw new Error('WEBHOOK_URL is missing');
+
+  const timeoutMs = window.TRIBAL_CONFIG?.webhookTimeoutMs ?? 300000;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({ userId: userName, chatInput: text, sessionId }),
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error(`Webhook responded with HTTP ${response.status}`);
+
+    const data = await response.json();
+    const first = Array.isArray(data) ? data[0] : data;
+
+    let outputText = first.output ?? 'No response received.';
+    let chartData = first.chartData ?? null;
+
+    const extracted = extractChartFromOutput(outputText);
+    if (extracted.chartData) {
+      outputText = extracted.text;
+      if (!chartData) chartData = extracted.chartData;
+    }
+
+    return { outputText, chartData };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    err.timeoutMs = timeoutMs;
+    throw err;
+  }
+}
+
+function buildErrorMessage(err) {
+  const isTimeout = err.name === 'AbortError';
+  const timeoutMs = err.timeoutMs ?? window.TRIBAL_CONFIG?.webhookTimeoutMs ?? 300000;
+  return isTimeout
+    ? `The request timed out after ${Math.round(timeoutMs / 60000)} minute(s). Your query may be too complex for a quick response — please try again, or rephrase to be more specific.`
+    : 'Sorry, something went wrong reaching the AI assistant. Please try again.';
+}
+
 // ── Send message ─────────────────────────────────────────
 async function sendMessage() {
   const input = document.getElementById('message-input');
   const text = input.value.trim();
   if (!text || isLoading) return;
 
-  const webhookUrl = window.TRIBAL_CONFIG?.webhookUrl;
-  if (!webhookUrl) {
+  if (!window.TRIBAL_CONFIG?.webhookUrl) {
     alert('Chat is not configured: WEBHOOK_URL is missing.');
     return;
   }
@@ -474,41 +604,10 @@ async function sendMessage() {
   renderMessages();
   appendThinkingBubble();
 
-  const timeoutMs = window.TRIBAL_CONFIG?.webhookTimeoutMs ?? 300000;
-  const controller = new AbortController();
-  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        userId: userName,
-        chatInput: text,
-        sessionId: sessions[activeSessionIndex].sessionId,
-      }),
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Webhook responded with HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const first = Array.isArray(data) ? data[0] : data;
-
-    let outputText = first.output ?? 'No response received.';
-    let chartData = first.chartData ?? null;
-
-    // n8n may embed the chart JSON at the start of the output string.
-    // Extract it and strip it from the displayed text in either case.
-    const extracted = extractChartFromOutput(outputText);
-    if (extracted.chartData) {
-      outputText = extracted.text;
-      if (!chartData) chartData = extracted.chartData;
-    }
-
+    const { outputText, chartData } = await fetchWebhookResponse(
+      text, sessions[activeSessionIndex].sessionId
+    );
     sessions[activeSessionIndex].messages.push({
       role: 'assistant',
       content: outputText,
@@ -517,12 +616,9 @@ async function sendMessage() {
     });
   } catch (err) {
     console.error('Chat error:', err);
-    const isTimeout = err.name === 'AbortError';
     sessions[activeSessionIndex].messages.push({
       role: 'assistant',
-      content: isTimeout
-        ? `The request timed out after ${Math.round(timeoutMs / 60000)} minute(s). Your query may be too complex for a quick response — please try again, or rephrase to be more specific.`
-        : 'Sorry, something went wrong reaching the AI assistant. Please try again.',
+      content: buildErrorMessage(err),
       timestamp: new Date().toISOString(),
       chartData: null,
     });
@@ -534,6 +630,84 @@ async function sendMessage() {
     updateControls();
     scrollToBottom();
     setTimeout(() => input.focus(), 0);
+  }
+}
+
+// ── Regenerate response ──────────────────────────────────
+async function regenerateResponse() {
+  if (isLoading) return;
+
+  const session = sessions[activeSessionIndex];
+  const msgs = session.messages;
+
+  // Find the last user message
+  let lastUserIdx = -1;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'user') { lastUserIdx = i; break; }
+  }
+  if (lastUserIdx === -1) return;
+
+  const text = msgs[lastUserIdx].content;
+  // Drop everything after the last user message
+  session.messages = msgs.slice(0, lastUserIdx + 1);
+
+  isLoading = true;
+  saveSessions();
+  renderMessages();
+  appendThinkingBubble();
+  updateControls();
+
+  try {
+    const { outputText, chartData } = await fetchWebhookResponse(text, session.sessionId);
+    session.messages.push({
+      role: 'assistant',
+      content: outputText,
+      timestamp: new Date().toISOString(),
+      chartData,
+    });
+  } catch (err) {
+    console.error('Regenerate error:', err);
+    session.messages.push({
+      role: 'assistant',
+      content: buildErrorMessage(err),
+      timestamp: new Date().toISOString(),
+      chartData: null,
+    });
+  } finally {
+    isLoading = false;
+    saveSessions();
+    removeThinkingBubble();
+    renderMessages();
+    updateControls();
+    scrollToBottom();
+  }
+}
+
+// ── Feedback ─────────────────────────────────────────────
+function setFeedback(msgIndex, value) {
+  const session = sessions[activeSessionIndex];
+  const msg = session.messages[msgIndex];
+
+  // Toggle off if the same thumb is clicked again
+  const newFeedback = msg.feedback === value ? null : value;
+  msg.feedback = newFeedback;
+  saveSessions();
+  renderMessages();
+
+  if (newFeedback) {
+    const userMsg = session.messages.slice(0, msgIndex).reverse().find(m => m.role === 'user');
+    fetch('/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: userName,
+        sessionId: session.sessionId,
+        messageIndex: msgIndex,
+        feedback: newFeedback,
+        aiMessage: msg.content,
+        userMessage: userMsg?.content ?? '',
+      }),
+    }).catch(e => console.warn('Feedback POST failed:', e));
   }
 }
 
@@ -561,12 +735,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Apply saved theme (default: dark)
   applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
 
-  // Event listeners
+  // Topbar / sidebar controls
   document.getElementById('btn-theme').addEventListener('click', toggleTheme);
   document.getElementById('btn-new-chat').addEventListener('click', createNewSession);
-
   document.getElementById('btn-clear').addEventListener('click', clearCurrentSession);
 
+  // Session search
+  document.getElementById('session-search').addEventListener('input', (e) => {
+    sessionSearchQuery = e.target.value;
+    renderSessionList();
+  });
+
+  // Scroll-to-bottom button
+  const chatWindow = document.getElementById('chat-window');
+  chatWindow.addEventListener('scroll', updateScrollButton);
+  document.getElementById('btn-scroll-bottom').addEventListener('click', () => {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  });
+
+  // Composer submit
   document.getElementById('composer').addEventListener('submit', (e) => {
     e.preventDefault();
     sendMessage();

@@ -13,6 +13,7 @@
     <aside class="ai-sidebar">
       <div class="ai-brand">Tribal</div>
       <button id="btn-new-chat">+ New Chat</button>
+      <input id="session-search" type="search" placeholder="Search chats…" autocomplete="off" />
       <div id="session-list" class="session-list"></div>
     </aside>
 
@@ -26,6 +27,7 @@
       <div id="chat-window" class="ai-messages">
         <div class="ai-empty">Ask a question to get started.</div>
       </div>
+      <button id="btn-scroll-bottom" class="btn-scroll-bottom" title="Scroll to bottom" aria-label="Scroll to bottom">↓</button>
       <form id="composer" class="ai-composer">
         <textarea
           id="message-input"
