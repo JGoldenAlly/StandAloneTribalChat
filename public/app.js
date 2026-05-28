@@ -696,12 +696,54 @@ async function regenerateResponse() {
 }
 
 // ── Feedback ─────────────────────────────────────────────
-function setFeedback(msgIndex, value) {
+function promptFeedbackReason() {
+  return new Promise(resolve => {
+    const modal = document.getElementById('feedback-modal');
+    const textarea = document.getElementById('feedback-reason');
+    const submitBtn = document.getElementById('feedback-submit');
+    const cancelBtn = document.getElementById('feedback-cancel');
+    const backdrop = modal.querySelector('.feedback-modal__backdrop');
+    if (!modal || !textarea || !submitBtn || !cancelBtn) { resolve(null); return; }
+
+    textarea.value = '';
+    modal.hidden = false;
+    setTimeout(() => textarea.focus(), 0);
+
+    function cleanup(result) {
+      modal.hidden = true;
+      submitBtn.removeEventListener('click', onSubmit);
+      cancelBtn.removeEventListener('click', onCancel);
+      backdrop.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onSubmit() { cleanup(textarea.value.trim()); }
+    function onCancel() { cleanup(null); }
+    function onKey(e) {
+      if (e.key === 'Escape') onCancel();
+      else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) onSubmit();
+    }
+    submitBtn.addEventListener('click', onSubmit);
+    cancelBtn.addEventListener('click', onCancel);
+    backdrop.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
+async function setFeedback(msgIndex, value) {
   const session = sessions[activeSessionIndex];
   const msg = session.messages[msgIndex];
 
   // Toggle off if the same thumb is clicked again
   const newFeedback = msg.feedback === value ? null : value;
+
+  let reason = '';
+  if (newFeedback === 'negative') {
+    const result = await promptFeedbackReason();
+    if (result === null) return; // user cancelled — leave feedback unchanged
+    reason = result;
+  }
+
   msg.feedback = newFeedback;
   saveSessions();
   renderMessages();
@@ -716,6 +758,7 @@ function setFeedback(msgIndex, value) {
         sessionId: session.sessionId,
         messageIndex: msgIndex,
         feedback: newFeedback,
+        reason,
         aiMessage: msg.content,
         userMessage: userMsg?.content ?? '',
       }),

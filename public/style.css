@@ -569,6 +569,66 @@ html, body {
   background: var(--session-hover-bg);
 }
 
+/* ── Feedback modal ─────────────────────────────────────── */
+.feedback-modal[hidden] { display: none; }
+.feedback-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.feedback-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+.feedback-modal__dialog {
+  position: relative;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 16px 18px;
+  width: min(420px, 92vw);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.feedback-modal__dialog h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-strong);
+}
+.feedback-modal__dialog textarea {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font: inherit;
+  resize: vertical;
+}
+.feedback-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.feedback-modal__actions button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+#feedback-submit {
+  background: var(--session-active-bg);
+  border-color: var(--session-active-color);
+  color: var(--session-active-color);
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
   .ai-chat-shell {
