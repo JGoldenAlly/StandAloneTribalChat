@@ -379,6 +379,14 @@ function renderMessages() {
       renderChart(chartContainer, msg.chartData, msgId);
     }
 
+    if (msg.role === 'assistant' && msg.responseTimeMs != null) {
+      const timerEl = document.createElement('div');
+      timerEl.className = 'bubble-response-time';
+      const secs = (msg.responseTimeMs / 1000).toFixed(1);
+      timerEl.textContent = `Thought for ${secs}s`;
+      bubble.appendChild(timerEl);
+    }
+
     if (msg.role === 'assistant') {
       const actionsEl = document.createElement('div');
       actionsEl.className = 'bubble-actions';
@@ -531,6 +539,7 @@ async function fetchWebhookResponse(text, sessionId) {
   const timeoutMs = window.TRIBAL_CONFIG?.webhookTimeoutMs ?? 300000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const startTime = Date.now();
 
   try {
     const response = await fetch(webhookUrl, {
@@ -540,6 +549,7 @@ async function fetchWebhookResponse(text, sessionId) {
       body: JSON.stringify({ userId: userName, chatInput: text, sessionId }),
     });
     clearTimeout(timeoutId);
+    const elapsedMs = Date.now() - startTime;
 
     if (!response.ok) throw new Error(`Webhook responded with HTTP ${response.status}`);
 
@@ -555,7 +565,7 @@ async function fetchWebhookResponse(text, sessionId) {
       if (!chartData) chartData = extracted.chartData;
     }
 
-    return { outputText, chartData };
+    return { outputText, chartData, elapsedMs };
   } catch (err) {
     clearTimeout(timeoutId);
     err.timeoutMs = timeoutMs;
@@ -605,7 +615,7 @@ async function sendMessage() {
   appendThinkingBubble();
 
   try {
-    const { outputText, chartData } = await fetchWebhookResponse(
+    const { outputText, chartData, elapsedMs } = await fetchWebhookResponse(
       text, sessions[activeSessionIndex].sessionId
     );
     sessions[activeSessionIndex].messages.push({
@@ -613,6 +623,7 @@ async function sendMessage() {
       content: outputText,
       timestamp: new Date().toISOString(),
       chartData,
+      responseTimeMs: elapsedMs,
     });
   } catch (err) {
     console.error('Chat error:', err);
@@ -658,12 +669,13 @@ async function regenerateResponse() {
   updateControls();
 
   try {
-    const { outputText, chartData } = await fetchWebhookResponse(text, session.sessionId);
+    const { outputText, chartData, elapsedMs } = await fetchWebhookResponse(text, session.sessionId);
     session.messages.push({
       role: 'assistant',
       content: outputText,
       timestamp: new Date().toISOString(),
       chartData,
+      responseTimeMs: elapsedMs,
     });
   } catch (err) {
     console.error('Regenerate error:', err);

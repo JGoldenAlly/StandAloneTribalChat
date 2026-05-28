@@ -377,6 +377,13 @@ html, body {
 .bubble-text a { color: var(--accent-link); text-decoration: underline; }
 .bubble-text hr { border: none; border-top: 1px solid var(--border-secondary); margin: 0.6em 0; }
 
+.bubble-response-time {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+  margin-top: 6px;
+}
+
 .bubble-time {
   font-size: 11px;
   color: var(--time-color);
